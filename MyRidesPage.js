@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 function MyRidesPage({ showToast, setActiveRide = () => {} }) {
     const [rides, setRides] = useState([]);
     const [activeTab, setActiveTab] = useState('active');
-    const [selectedRide, setSelectedRide] = useState(null);
+
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -14,7 +14,7 @@ function MyRidesPage({ showToast, setActiveRide = () => {} }) {
             return;
         }
 
-        fetch('https://localhost:44351/api/Rides/my-rides', {
+        fetch('https://localhost:44327/api/Rides/my-rides', {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -37,7 +37,7 @@ function MyRidesPage({ showToast, setActiveRide = () => {} }) {
         }
     
         try {
-            const response = await fetch(`https://localhost:44351/api/Rides/cancel/${id}`, {
+            const response = await fetch(`https://localhost:44327/api/Rides/cancel/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -66,13 +66,12 @@ function MyRidesPage({ showToast, setActiveRide = () => {} }) {
     };
 
     const handleViewRide = (ride) => {
-        setSelectedRide(ride);
-        setActiveRide(ride);
+        // Navigate to ride details page instead of showing inline details
+        localStorage.setItem('selectedRide', JSON.stringify(ride));
+        navigate('/ride-details', { state: { ride: ride } });
     };
 
-    const handleBackToList = () => {
-        setSelectedRide(null);
-    };
+
 
     const filteredRides = rides.filter(ride => ride.status === activeTab);
     const activeRides = rides.filter(ride => ride.status === 'active');
@@ -86,30 +85,7 @@ function MyRidesPage({ showToast, setActiveRide = () => {} }) {
                 </button>
             </div>
 
-            {selectedRide ? (
-                <div className="card p-4">
-                    <h3 className="mb-3">Ride Details</h3>
-                    <p><strong>From:</strong> {selectedRide.departure}</p>
-                    <p><strong>To:</strong> {selectedRide.destination}</p>
-                    <p><strong>Date:</strong> {selectedRide.date}</p>
-                    <p><strong>Time:</strong> {selectedRide.time}</p>
-                    <p><strong>Cost per seat:</strong> ₹{selectedRide.pricePerSeat}</p>
-                    <p><strong>Seats Booked:</strong> {selectedRide.seatsBooked}</p>
-                    <p><strong>Seats Available:</strong> {selectedRide.seatsAvailable}</p>
-                    <p><strong>Status:</strong> 
-                        <span className={`badge ms-2 ${
-                            selectedRide.status === 'active' ? 'bg-success' :
-                            selectedRide.status === 'completed' ? 'bg-secondary' : 'bg-danger'
-                        }`}>
-                            {selectedRide.status.charAt(0).toUpperCase() + selectedRide.status.slice(1)}
-                        </span>
-                    </p>
-
-                    <button className="btn btn-outline-secondary mt-3" onClick={handleBackToList}>
-                        <i className="bi bi-arrow-left me-1"></i>Back to My Rides
-                    </button>
-                </div>
-            ) : (
+ (
                 <>
                     {activeRides.length === 0 && (
                         <div className="alert alert-info">
