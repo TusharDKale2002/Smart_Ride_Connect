@@ -5,7 +5,7 @@ function PublishRidePage({ showToast }) {
     const [carNumber, setCarNumber] = useState('');
     const [carOwnerName, setCarOwnerName] = useState('');
     const [licenseNumber, setLicenseNumber] = useState('');
-    const [carType, setCarType] = useState('5');
+    const [carType, setCarType] = useState('0'); // 0 for 5-seater, 1 for 7-seater
     const [departure, setDeparture] = useState('');
     const [destination, setDestination] = useState('');
     const [departureDate, setDepartureDate] = useState('');
@@ -78,10 +78,10 @@ function PublishRidePage({ showToast }) {
     };
 
     const getSeatOptions = () => {
-        if (carType === '5') {
-            return [1, 2, 3];
-        } else if (carType === '7') {
-            return [1, 2, 3, 4, 5];
+        if (carType === '0') {
+            return [1, 2, 3, 4]; // 5-seater cars can have 1-4 available seats
+        } else if (carType === '1') {
+            return [1, 2, 3, 4, 5, 6]; // 7-seater cars can have 1-6 available seats
         } else {
             return [];
         }
@@ -96,6 +96,7 @@ function PublishRidePage({ showToast }) {
             destination: validateLocation(destination),
             departureDate: '',
             departureTime: '',
+            seatsAvailable: !seatsAvailable ? 'Please select number of available seats' : '',
             pricePerSeat: validatePrice(pricePerSeat)
         };
 
@@ -109,72 +110,63 @@ function PublishRidePage({ showToast }) {
             newErrors.destination = "Departure and destination cannot be the same";
         }
 
-        if (carType === '5' && seatsAvailable > 5) {
-            newErrors.seatsAvailable = "Cannot exceed 5 seats for a 5-seater car";
-        }
-        if (carType === '7' && seatsAvailable > 7) {
-            newErrors.seatsAvailable = "Cannot exceed 7 seats for a 7-seater car";
-        }
-
         setErrors(newErrors);
         return !Object.values(newErrors).some(e => e);
     };
 
     const handlePublishRide = async (e) => {
-    e.preventDefault();
+        e.preventDefault();
 
-    if (!validateForm()) {
-        showToast('Please Enter Valid Details!', 'warning');
-        return;
-    }
-
-    const user = JSON.parse(localStorage.getItem("user"));
-    const token = localStorage.getItem("token");
-
-    if (!user || !token) {
-        showToast('User not authenticated. Please log in again.', 'error');
-        navigate('/login');
-        return;
-    }
-
-    const rideData = {
-    userId: user.userId,  // ✅ fixed
-    carNumber,
-    carOwnername: carOwnerName,  // ✅ fixed casing
-    licenseNumber,
-    departureLoc: departure,  // ✅ renamed
-    destinationLoc: destination,  // ✅ renamed
-    departureDate,
-    departureTime: departureTime.length === 5 ? `${departureTime}:00` : departureTime,  // ✅ optional safety
-    carType: parseInt(carType),
-    seatsAvailable,
-    pricePerSeat: parseFloat(pricePerSeat)
-};
-
-
-    try {
-        const response = await fetch('https://localhost:44351/api/Rides/publish', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(rideData)
-        });
-
-        if (response.ok) {
-            showToast('Ride published successfully!', 'success');
-            setTimeout(() => navigate('/dashboard'), 1500);
-        } else {
-            const errorData = await response.json();
-            showToast(errorData.message || 'Failed to publish ride', 'error');
+        if (!validateForm()) {
+            showToast('Please Enter Valid Details!', 'warning');
+            return;
         }
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('Something went wrong while publishing the ride', 'error');
-    }
-};
 
+        const user = JSON.parse(localStorage.getItem("user"));
+        const token = localStorage.getItem("token");
+
+        if (!user || !token) {
+            showToast('User not authenticated. Please log in again.', 'error');
+            navigate('/login');
+            return;
+        }
+
+        const rideData = {
+            userId: user.userId,
+            carNumber,
+            carOwnername: carOwnerName,
+            licenseNumber,
+            departureLoc: departure,
+            destinationLoc: destination,
+            departureDate,
+            departureTime: departureTime.length === 5 ? `${departureTime}:00` : departureTime,
+            carType: parseInt(carType),
+            seatsAvailable,
+            pricePerSeat: parseFloat(pricePerSeat)
+        };
+
+        try {
+            const response = await fetch('https://localhost:44327/api/Rides/publish', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(rideData)
+            });
+
+            if (response.ok) {
+                showToast('Ride published successfully!', 'success');
+                setTimeout(() => navigate('/dashboard'), 1500);
+            } else {
+                const errorData = await response.json();
+                showToast(errorData.message || 'Failed to publish ride', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Something went wrong while publishing the ride', 'error');
+        }
+    };
 
     const handleCancel = () => navigate('/dashboard');
 
@@ -185,7 +177,6 @@ function PublishRidePage({ showToast }) {
         const day = String(now.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     };
-
 
     return (
         <div className="container py-4">
@@ -237,22 +228,23 @@ function PublishRidePage({ showToast }) {
                                 />
                                 {errors.licenseNumber && <div className="invalid-feedback">{errors.licenseNumber}</div>}
                             </div>
-                            <div className="form-group mb-3">
-                            <label htmlFor="carType">Car Type</label>
-                            <select
-                                className="form-control"
-                                id="carType"
-                                value={carType}
-                                onChange={(e) => {
-                                    setCarType(e.target.value);
-                                    setSeatsAvailable('');
-                                }}
-                            >
-                                <option value="">Select Car Type</option>
-                                <option value="5">5 Seater</option>
-                                <option value="7">7 Seater</option>
-                            </select>
-                        </div>
+                            <div className="col-md-6">
+                                <label htmlFor="carType" className="form-label">Car Type *</label>
+                                <select
+                                    className={`form-control ${errors.carType ? 'is-invalid' : ''}`}
+                                    id="carType"
+                                    value={carType}
+                                    onChange={(e) => {
+                                        setCarType(e.target.value);
+                                        setSeatsAvailable(''); // Reset seats when car type changes
+                                    }}
+                                >
+                                    <option value="">Select Car Type</option>
+                                    <option value="0">5 Seater</option>
+                                    <option value="1">7 Seater</option>
+                                </select>
+                                {errors.carType && <div className="invalid-feedback">{errors.carType}</div>}
+                            </div>
                         </div>
 
                         <h5 className="mb-3">Ride Details</h5>
@@ -308,23 +300,28 @@ function PublishRidePage({ showToast }) {
                                 />
                                 {errors.departureTime && <div className="invalid-feedback">{errors.departureTime}</div>}
                             </div>
-                            <div className="form-group mb-3">
-                            <label htmlFor="seatsAvailable">Seats Available</label>
-                            <select
-                                className="form-control"
-                                id="seatsAvailable"
-                                value={seatsAvailable}
-                                onChange={(e) => setSeatsAvailable(parseInt(e.target.value))}
-                            >
-                                <option value="">Select Seats</option>
-                                {getSeatOptions().map((seat) => (
-                                    <option key={seat} value={seat}>
-                                        {seat}
-                                    </option>
-                                ))}
-                            </select>
-                            {errors.seatsAvailable && <div className="invalid-feedback">{errors.seatsAvailable}</div>}
-                        </div>
+                            <div className="col-md-6">
+                                <label htmlFor="seatsAvailable" className="form-label">Seats Available *</label>
+                                <select
+                                    className={`form-control ${errors.seatsAvailable ? 'is-invalid' : ''}`}
+                                    id="seatsAvailable"
+                                    value={seatsAvailable}
+                                    onChange={(e) => setSeatsAvailable(parseInt(e.target.value))}
+                                >
+                                    <option value="">Select Seats</option>
+                                    {getSeatOptions().map((seat) => (
+                                        <option key={seat} value={seat}>
+                                            {seat}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.seatsAvailable && <div className="invalid-feedback">{errors.seatsAvailable}</div>}
+                                <small className="form-text text-muted">
+                                    {carType === '0' ? '5-seater cars can have 1-4 available seats (driver seat is not available)' : 
+                                     carType === '1' ? '7-seater cars can have 1-6 available seats (driver seat is not available)' : 
+                                     'Select car type first to see available seat options'}
+                                </small>
+                            </div>
                             <div className="col-md-6">
                                 <label htmlFor="pricePerSeat" className="form-label">Price per Seat (₹) *</label>
                                 <input
